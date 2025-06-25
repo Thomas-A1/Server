@@ -483,33 +483,58 @@ exports.getKnustAdmissionDetails = async (req, res) => {
         const url = 'https://www.knust.edu.gh/announcements/undergraduate-admissions/admission-candidates-undergraduate-degree-programmes-20252026-academic-year';
 
         if (isDev) {
+            // Development environment - use regular puppeteer
             const puppeteer = require('puppeteer');
-            browser = await puppeteer.launch({ headless: true });
+            browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
         } else {
-            const chromium = require('chrome-aws-lambda');
-            const puppeteer = require('puppeteer-core');
-
-            const executablePath = await chromium.executablePath;
-            if (!executablePath) {
-                throw new Error('Chromium executablePath not found.');
-            }
+            // Production environment - Render deployment
+            const puppeteer = require('puppeteer');
 
             browser = await puppeteer.launch({
-                args: chromium.args,
-                defaultViewport: chromium.defaultViewport,
-                executablePath: executablePath,
-                headless: chromium.headless,
-                ignoreHTTPSErrors: true,
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process'
+                ],
+                // Use the bundled Chromium that comes with puppeteer
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
             });
         }
+
         const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle2' });
-        await page.waitForSelector('.ann-info');
+
+        // Set viewport and user agent
+        await page.setViewport({ width: 1366, height: 768 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+        // Navigate with timeout
+        await page.goto(url, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+
+        // Wait for the selector with timeout
+        await page.waitForSelector('.ann-info', { timeout: 10000 });
 
         const data = await page.evaluate(() => {
             const formatText = (el) => el?.innerText?.trim() || '';
             const publishedDate = formatText(document.querySelector('.post-meta .post-date')) || null;
             const annInfo = document.querySelector('.ann-info');
+
+            if (!annInfo) {
+                throw new Error('Could not find announcement info section');
+            }
+
             const paragraphs = annInfo.querySelectorAll('p');
             const description = paragraphs.length > 1 ? paragraphs[1].innerText.trim() : '';
 
@@ -524,6 +549,7 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                     deadlineText = li ? li.innerText.replace(/.*?:\s*/i, '') : '';
                 }
             }
+
             // Extract application fees
             let feeGhana = '';
             let feeInternational = '';
@@ -540,6 +566,7 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                     }
                 }
             });
+
             // Extract programmes
             let programmes = [];
             const progHeading = headings.find(h => h.innerText.includes('Programmes of Study'));
@@ -553,6 +580,7 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                     nextEl = nextEl.nextElementSibling;
                 }
             }
+
             // Extract requirements
             const extractRequirements = () => {
                 const requirementElements = Array.from(annInfo.querySelectorAll('ol, ul'));
@@ -563,7 +591,9 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                 });
                 return requirements;
             };
+
             const admissionRequirements = extractRequirements();
+
             return {
                 publishedDate,
                 description,
@@ -576,13 +606,26 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                 admissionRequirements
             };
         });
+
         await browser.close();
+
         res.status(200).json({
             success: true,
             data
         });
+
     } catch (error) {
         console.error('Error scraping KNUST admission details:', error);
+
+        // Ensure browser is closed even on error
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (closeError) {
+                console.error('Error closing browser:', closeError);
+            }
+        }
+
         res.status(500).json({
             success: false,
             message: 'Error fetching KNUST admission details',
@@ -590,5 +633,3 @@ exports.getKnustAdmissionDetails = async (req, res) => {
         });
     }
 };
-
-
