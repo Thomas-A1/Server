@@ -490,12 +490,13 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                 args: ['--no-sandbox', '--disable-setuid-sandbox']
             });
         } else {
-            // Production environment - Render deployment
-            const puppeteer = require('puppeteer');
+            // Production environment - use puppeteer-core with Sparticuz Chromium
+            const puppeteer = require('puppeteer-core');
+            const chromium = require('@sparticuz/chromium');
 
             browser = await puppeteer.launch({
-                headless: true,
                 args: [
+                    ...chromium.args,
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
@@ -504,10 +505,15 @@ exports.getKnustAdmissionDetails = async (req, res) => {
                     '--disable-features=VizDisplayCompositor',
                     '--no-first-run',
                     '--no-zygote',
-                    '--single-process'
+                    '--single-process',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding'
                 ],
-                // Use the bundled Chromium that comes with puppeteer
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
             });
         }
 
