@@ -482,13 +482,24 @@ exports.getKnustAdmissionDetails = async (req, res) => {
     try {
         const url = 'https://www.knust.edu.gh/announcements/undergraduate-admissions/admission-candidates-undergraduate-degree-programmes-20252026-academic-year';
 
-        const browser = await chromium.puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath,
-            headless: chromium.headless,
-            ignoreHTTPSErrors: true,
-        });
+        const isDev = process.env.NODE_ENV !== 'production';
+
+        let browser;
+
+        if (isDev) {
+            const puppeteer = require('puppeteer');
+            browser = await puppeteer.launch({ headless: true });
+        } else {
+            const chromium = require('chrome-aws-lambda');
+            browser = await chromium.puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath,
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
+            });
+        }
+
 
 
         const page = await browser.newPage();
