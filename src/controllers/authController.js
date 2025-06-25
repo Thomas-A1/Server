@@ -4,7 +4,6 @@ const VerificationModel = require('../models/verificationModel');
 const EmailService = require('../utils/emailService');
 const admin = require('firebase-admin');
 const jwt = require('jsonwebtoken');
-const puppeteer = require('puppeteer-core');
 
 exports.signup = async (req, res) => {
     try {
@@ -476,11 +475,33 @@ exports.getUserBookmarks = async (req, res) => {
 //         });
 //     }
 // };
+const isDev = process.env.NODE_ENV !== 'production';
+
 exports.getKnustAdmissionDetails = async (req, res) => {
+    let browser;
     try {
         const url = 'https://www.knust.edu.gh/announcements/undergraduate-admissions/admission-candidates-undergraduate-degree-programmes-20252026-academic-year';
 
-        const browser = await puppeteer.launch({ headless: true });
+        if (isDev) {
+            const puppeteer = require('puppeteer');
+            browser = await puppeteer.launch({ headless: true });
+        } else {
+            const chromium = require('chrome-aws-lambda');
+            const puppeteer = require('puppeteer-core');
+
+            const executablePath = await chromium.executablePath;
+            if (!executablePath) {
+                throw new Error('Chromium executablePath not found.');
+            }
+
+            browser = await puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath: executablePath,
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
+            });
+        }
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'networkidle2' });
         await page.waitForSelector('.ann-info');
