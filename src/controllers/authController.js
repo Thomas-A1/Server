@@ -4,18 +4,7 @@ const VerificationModel = require('../models/verificationModel');
 const EmailService = require('../utils/emailService');
 const admin = require('firebase-admin');
 const jwt = require('jsonwebtoken');
-
-const isDev = process.env.NODE_ENV !== 'production';
-
-let puppeteer;
-let chromium;
-
-if (isDev) {
-    puppeteer = require('puppeteer');
-} else {
-    puppeteer = require('puppeteer-core');
-    chromium = require('chrome-aws-lambda');
-}
+const puppeteer = require('puppeteer-core');
 
 exports.signup = async (req, res) => {
     try {
@@ -124,7 +113,7 @@ exports.resendVerificationCode = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        
+
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -153,7 +142,7 @@ exports.login = async (req, res) => {
         }
 
         const userData = userDoc.data();
-        
+
         // if (!userData.emailVerified) {
         //     return res.status(200).json({
         //         success: true,
@@ -178,7 +167,7 @@ exports.login = async (req, res) => {
 
         // Create a custom token for client authentication
         const userToken = await auth.createCustomToken(userCredential.uid);
-        
+
         // Store session information
         const sessionData = {
             userId: userCredential.uid,
@@ -188,9 +177,9 @@ exports.login = async (req, res) => {
             ipAddress: req.ip || req.connection.remoteAddress,
             isActive: true
         };
-        
+
         const sessionRef = await db.collection('userSessions').add(sessionData);
-        
+
         // Return user data and token
         res.status(200).json({
             success: true,
@@ -208,10 +197,10 @@ exports.login = async (req, res) => {
         });
     } catch (error) {
         console.error('Error during login:', error);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: 'An error occurred during login',
-            error: error.message 
+            error: error.message
         });
     }
 };
@@ -234,13 +223,13 @@ const verifyPassword = async (email, password) => {
                 returnSecureToken: true
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.error?.message || 'Password verification failed');
         }
-        
+
         return data;
     } catch (error) {
         throw new Error('Invalid credentials');
@@ -251,30 +240,30 @@ const verifyPassword = async (email, password) => {
 exports.logout = async (req, res) => {
     try {
         const { sessionId } = req.body;
-        
+
         if (!sessionId) {
             return res.status(400).json({
                 success: false,
                 message: 'Session ID is required'
             });
         }
-        
+
         // Update session to inactive
         await db.collection('userSessions').doc(sessionId).update({
             isActive: false,
             loggedOutAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        
+
         res.status(200).json({
             success: true,
             message: 'Logged out successfully'
         });
     } catch (error) {
         console.error('Error during logout:', error);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: 'An error occurred during logout',
-            error: error.message 
+            error: error.message
         });
     }
 };
@@ -416,7 +405,7 @@ exports.getUserBookmarks = async (req, res) => {
 //                     deadlineText = li ? li.innerText.replace(/.*?:\s*/i, '') : '';
 //                 }
 //             }
-            
+
 //             // Extract application fees from the table
 //             // Initialize variables to store the fees
 //             let feeGhana = '';
@@ -491,19 +480,7 @@ exports.getKnustAdmissionDetails = async (req, res) => {
     try {
         const url = 'https://www.knust.edu.gh/announcements/undergraduate-admissions/admission-candidates-undergraduate-degree-programmes-20252026-academic-year';
 
-        let browser;
-
-        if (isDev) {
-            browser = await puppeteer.launch({ headless: true });
-        } else {
-            browser = await puppeteer.launch({
-                args: chromium.args,
-                defaultViewport: chromium.defaultViewport,
-                executablePath: await chromium.executablePath,
-                headless: true,
-                ignoreHTTPSErrors: true,
-            });
-        }
+        const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'networkidle2' });
         await page.waitForSelector('.ann-info');
