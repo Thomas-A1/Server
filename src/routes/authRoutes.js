@@ -53,7 +53,7 @@ router.get(
             });
 
             // Redirect with token and user data
-            const redirectUrl = `https://unighana-backend-awyo.onrender.com/landing-page?token=${token}&user=${encodeURIComponent(
+            const redirectUrl = `https://uni-ghana.vercel.app/landing-page?token=${token}&user=${encodeURIComponent(
                 JSON.stringify({
                     id: req.user.id,
                     firstName: req.user.firstName,
@@ -66,7 +66,7 @@ router.get(
         } catch (error) {
             console.error('Error in Google callback:', error);
             res.redirect(
-                'https://unighana-backend-awyo.onrender.com/register?error=google_auth_failed'
+                'https://uni-ghana.vercel.app/register?error=google_auth_failed'
             );
         }
     }
@@ -77,7 +77,7 @@ router.get('/auth/google/failure', (req, res) => {
     const errorMsg = req.session?.messages?.[0] || 'google_auth_failed';
 
     res.redirect(
-        `https://unighana-backend-awyo.onrender.com/register?error=${encodeURIComponent(errorMsg)}`
+        `https://uni-ghana.vercel.app/register?error=${encodeURIComponent(errorMsg)}`
     );
 });
 
