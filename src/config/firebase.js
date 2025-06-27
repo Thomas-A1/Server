@@ -33,26 +33,66 @@
 // module.exports = { db, auth, admin, bucket };
 
 
+// const admin = require("firebase-admin");
+// const dotenv = require("dotenv");
+
+// dotenv.config(); // Only needed for local dev
+
+// // Decode base64 service account key
+// const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_B64;
+// const decodedKey = Buffer.from(base64Key, 'base64').toString('utf-8');
+
+// let serviceAccountKey;
+// try {
+//     serviceAccountKey = JSON.parse(decodedKey);
+// } catch (error) {
+//     console.error('Error parsing Firebase service account key:', error);
+//     throw new Error('Invalid Firebase service account key');
+// }
+
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccountKey),
+//     storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+// });
+
+// const db = admin.firestore();
+// const auth = admin.auth();
+// const bucket = admin.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET);
+
+// module.exports = { db, auth, admin, bucket };
+
+
 const admin = require("firebase-admin");
 const dotenv = require("dotenv");
 
-dotenv.config(); // Only needed for local dev
+dotenv.config();
 
-// Decode base64 service account key
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY_B64) {
+    console.error("🔥 Missing FIREBASE_SERVICE_ACCOUNT_KEY_B64 in environment variables");
+    process.exit(1);
+}
+
 const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_B64;
-const decodedKey = Buffer.from(base64Key, 'base64').toString('utf-8');
+
+let decodedKey;
+try {
+    decodedKey = Buffer.from(base64Key, 'base64').toString('utf-8');
+} catch (e) {
+    console.error("Error decoding FIREBASE_SERVICE_ACCOUNT_KEY_B64:", e);
+    process.exit(1);
+}
 
 let serviceAccountKey;
 try {
     serviceAccountKey = JSON.parse(decodedKey);
-} catch (error) {
-    console.error('Error parsing Firebase service account key:', error);
-    throw new Error('Invalid Firebase service account key');
+} catch (e) {
+    console.error("Error parsing Firebase service account JSON:", e);
+    process.exit(1);
 }
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccountKey),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
 });
 
 const db = admin.firestore();

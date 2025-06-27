@@ -269,54 +269,48 @@ exports.logout = async (req, res) => {
 
 exports.getUserProfile = async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
+        console.log('getUserProfile called, req.user:', req.user);
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+        // req.user comes from the verifyToken middleware (JWT decoded payload)
+        const userId = req.user.id;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID not found in token'
+            });
         }
 
-        const customToken = authHeader.split(' ')[1];
-
-        // Decode the custom token manually (DO NOT VERIFY SIGNATURE — Firebase custom tokens are short-lived)
-        let decodedToken;
-        try {
-            decodedToken = jwt.decode(customToken); // Only decode, no verification
-        } catch (err) {
-            console.error('Invalid token format:', err);
-            return res.status(400).json({ success: false, message: 'Invalid token format' });
-        }
-
-        if (!decodedToken || !decodedToken.uid) {
-            return res.status(400).json({ success: false, message: 'Invalid custom token: UID missing' });
-        }
-
-        const uid = decodedToken.uid;
-
-        // Fetch user data from Firestore
-        const userDoc = await db.collection('users').doc(uid).get();
+        // Fetch user from Firestore using the ID
+        const userDoc = await db.collection('users').doc(userId).get();
 
         if (!userDoc.exists) {
-            return res.status(404).json({ success: false, message: 'User not found' });
+            return res.status(404).json({
+                success: false,
+                message: 'User not found in database'
+            });
         }
 
         const userData = userDoc.data();
 
-        res.status(200).json({
-            success: true,
-            user: {
-                id: uid,
-                firstName: userData.firstName,
-                lastName: userData.lastName,
-                email: userData.email,
-                educationLevel: userData.educationLevel,
-                profileImage: userData.profileImage || null,
-                emailVerified: userData.emailVerified
-            }
+        // Return the user data (this should match what your frontend expects)
+        return res.status(200).json({
+            id: userId,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            educationLevel: userData.educationLevel,
+            profileImage: userData.profileImage || null,
+            emailVerified: userData.emailVerified,
+            createdAt: userData.createdAt
         });
 
     } catch (error) {
-        console.error('Error fetching user profile:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch user profile', error: error.message });
+        console.error('Error in getUserProfile:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
     }
 };
 
