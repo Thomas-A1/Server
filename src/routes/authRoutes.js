@@ -32,7 +32,7 @@ router.get(
 );
 
 router.get(
-    'http://unighana-backend-awyo.onrender.com/auth/google/callback',
+    '/auth/google/callback',
     passport.authenticate('google', {
         failureRedirect: '/auth/google/failure',
         failureMessage: true,
