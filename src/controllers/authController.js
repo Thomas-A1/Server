@@ -109,101 +109,6 @@ exports.resendVerificationCode = async (req, res) => {
     }
 };
 
-// exports.login = async (req, res) => {
-//     try {
-//         const { email, password } = req.body;
-
-//         if (!email || !password) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'Email and password are required'
-//             });
-//         }
-
-//         // Authenticate user with Firebase Auth
-//         let userCredential;
-//         try {
-//             userCredential = await auth.getUserByEmail(email);
-//         } catch (error) {
-//             return res.status(401).json({
-//                 success: false,
-//                 message: 'Invalid email or password'
-//             });
-//         }
-
-//         // Check if email is verified
-//         const userDoc = await db.collection('users').doc(userCredential.uid).get();
-//         if (!userDoc.exists) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: 'User account not found'
-//             });
-//         }
-
-//         const userData = userDoc.data();
-
-//         // if (!userData.emailVerified) {
-//         //     return res.status(200).json({
-//         //         success: true,
-//         //         message: 'Login Successful. Email not verified',
-//         //         needsVerification: true,
-//         //         userId: userCredential.uid
-//         //     });
-//         // }
-
-//         // Verify password - Firebase Admin SDK doesn't support direct password verification,
-//         // so we need to use a workaround with a Firebase Auth API call
-//         try {
-//             // This would normally be done with Firebase client SDK
-//             // Here we're assuming we have a Firebase Auth REST API wrapper
-//             await verifyPassword(email, password);
-//         } catch (error) {
-//             return res.status(401).json({
-//                 success: false,
-//                 message: 'Invalid email or password'
-//             });
-//         }
-
-//         // Create a custom token for client authentication
-//         const userToken = await auth.createCustomToken(userCredential.uid);
-
-//         // Store session information
-//         const sessionData = {
-//             userId: userCredential.uid,
-//             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-//             lastActiveAt: admin.firestore.FieldValue.serverTimestamp(),
-//             userAgent: req.headers['user-agent'] || 'Unknown',
-//             ipAddress: req.ip || req.connection.remoteAddress,
-//             isActive: true
-//         };
-
-//         const sessionRef = await db.collection('userSessions').add(sessionData);
-
-//         // Return user data and token
-//         res.status(200).json({
-//             success: true,
-//             message: 'Login successful',
-//             user: {
-//                 id: userCredential.uid,
-//                 firstName: userData.firstName,
-//                 lastName: userData.lastName,
-//                 email: userData.email,
-//                 educationLevel: userData.educationLevel,
-//                 emailVerified: userData.emailVerified
-//             },
-//             token: userToken,
-//             sessionId: sessionRef.id
-//         });
-//     } catch (error) {
-//         console.error('Error during login:', error);
-//         res.status(500).json({
-//             success: false,
-//             message: 'An error occurred during login',
-//             error: error.message
-//         });
-//     }
-// };
-
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -215,6 +120,7 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Authenticate user with Firebase Auth
         let userCredential;
         try {
             userCredential = await auth.getUserByEmail(email);
@@ -225,6 +131,7 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Check if email is verified
         const userDoc = await db.collection('users').doc(userCredential.uid).get();
         if (!userDoc.exists) {
             return res.status(404).json({
@@ -235,8 +142,20 @@ exports.login = async (req, res) => {
 
         const userData = userDoc.data();
 
-        // validate password with Firebase Auth REST API
+        // if (!userData.emailVerified) {
+        //     return res.status(200).json({
+        //         success: true,
+        //         message: 'Login Successful. Email not verified',
+        //         needsVerification: true,
+        //         userId: userCredential.uid
+        //     });
+        // }
+
+        // Verify password - Firebase Admin SDK doesn't support direct password verification,
+        // so we need to use a workaround with a Firebase Auth API call
         try {
+            // This would normally be done with Firebase client SDK
+            // Here we're assuming we have a Firebase Auth REST API wrapper
             await verifyPassword(email, password);
         } catch (error) {
             return res.status(401).json({
@@ -245,16 +164,10 @@ exports.login = async (req, res) => {
             });
         }
 
-        // ✅ generate your own JWT, not Firebase custom token
-        const jwtPayload = {
-            userId: userCredential.uid,
-            email: userCredential.email,
-        };
+        // Create a custom token for client authentication
+        const userToken = await auth.createCustomToken(userCredential.uid);
 
-        const userToken = jwt.sign(jwtPayload, process.env.JWT_SECRET, {
-            expiresIn: '2h'
-        });
-
+        // Store session information
         const sessionData = {
             userId: userCredential.uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -266,6 +179,7 @@ exports.login = async (req, res) => {
 
         const sessionRef = await db.collection('userSessions').add(sessionData);
 
+        // Return user data and token
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -280,7 +194,6 @@ exports.login = async (req, res) => {
             token: userToken,
             sessionId: sessionRef.id
         });
-
     } catch (error) {
         console.error('Error during login:', error);
         res.status(500).json({
@@ -290,7 +203,6 @@ exports.login = async (req, res) => {
         });
     }
 };
-
 
 // Function to verify password (placeholder for Firebase Auth API call)
 // In a real implementation, you would typically use Firebase client SDK for this
